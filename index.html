@@ -75,7 +75,7 @@ details.card{margin:10px 0}summary{cursor:pointer;font-weight:500;min-height:28p
 <div id="wp"></div>
 <div id="home">
   <div class="in">
-    <div class="hh"><h2>Bắt đầu công việc</h2><span class="cnt" id="cnt"></span></div>
+    <div class="hh"><h2>Công cụ làm việc</h2><span class="cnt" id="cnt"></span></div>
     <div class="apps" id="apps"></div>
   </div>
 </div>
@@ -93,6 +93,7 @@ details.card{margin:10px 0}summary{cursor:pointer;font-weight:500;min-height:28p
     </ol>
     <h3>Các chức năng thêm</h3>
     <ul>
+      <li><b>Tự nhận khung:</b> bấm Tự nhận khung để tool tự tìm và cắt các khung trên trang theo thứ tự đọc. Khung nào sai thì bấm Sửa hoặc Xóa ở mục "Các khung đã cắt". Hoạt động tốt nhất khi các khung cách nhau bằng khoảng trắng (hoặc đen) rõ ràng.</li>
       <li><b>Cắt xéo:</b> bật nút này rồi kéo từng góc riêng để tạo cạnh nghiêng. Phần ngoài cạnh xéo bị bỏ.</li>
       <li><b>Xóa nền:</b> bật Xóa nền, bấm Chấm màu nền rồi chạm vào màu nền trên trang (mặc định là trắng). Chỉnh Độ nhạy nếu còn sót nền hoặc mất nét. Phần trắng bên trong bong bóng thoại vẫn được giữ. Kết quả lưu PNG nền trong suốt.</li>
       <li><b>Thu phóng và Cuộn trang:</b> kéo thanh Thu phóng để phóng to trang. Bật Cuộn trang thì chạm kéo sẽ cuộn, tắt đi để vẽ khung tiếp.</li>
@@ -103,12 +104,13 @@ details.card{margin:10px 0}summary{cursor:pointer;font-weight:500;min-height:28p
     <h3>Lưu ý</h3>
     <ul>
       <li>Ảnh chỉ xử lý trên máy của bạn, không gửi đi đâu.</li>
+      <li>Ảnh trang và các khung đã cắt được lưu trong trình duyệt, tải lại trang vẫn còn. Bấm "Xóa ảnh &amp; khung đã lưu" khi muốn bắt đầu lại.</li>
       <li>Nên chọn PNG khi cắt xéo hoặc xóa nền để phần trong suốt không bị thành nền trắng.</li>
     </ul>
   </details>
   <div class="card">
     <div class="row">
-      <input type="file" id="file" accept="image/*" multiple aria-label="Thêm ảnh trang">
+      <input type="file" id="file" accept="image/*" multiple aria-label="Thêm ảnh trang"><button class="btn" id="wipe">Xóa ảnh &amp; khung đã lưu</button>
     </div>
     <div class="row">
       <select id="wall" aria-label="Hình nền"><option value="mist">Nền Sương sớm</option><option value="dusk">Nền Hoàng hôn</option><option value="sea">Nền Biển đêm</option><option value="forest">Nền Rừng sâu</option><option value="auto">Nền trơn</option><option value="own">Ảnh nền của bạn</option></select>
@@ -125,6 +127,7 @@ details.card{margin:10px 0}summary{cursor:pointer;font-weight:500;min-height:28p
     <p class="hint">Kéo ngón tay hoặc chuột trên trang để chọn một khung, rồi thêm vào danh sách. Bật Cắt xéo để kéo từng góc tạo cạnh nghiêng. Có thể cắt nhiều khung từ cùng một trang.</p>
     <div class="row" style="margin-bottom:10px"><label for="zoom" class="hint" style="margin:0">Thu phóng</label><input type="range" id="zoom" min="1" max="3" step="0.05" value="1" style="flex:1;min-width:120px;height:44px"><button class="btn" id="scr" aria-pressed="false">Cuộn trang</button></div>
     <div class="row" style="margin-bottom:10px"><button class="btn" id="bg" aria-pressed="false">Xóa nền</button><input type="color" id="bgc" value="#ffffff" aria-label="Màu nền cần xóa" style="width:44px;height:44px;padding:2px;border:1px solid var(--line);border-radius:6px;background:var(--card)"><button class="btn" id="pick" aria-pressed="false">Chấm màu nền</button><label for="tol" class="hint" style="margin:0">Độ nhạy</label><input type="range" id="tol" min="5" max="120" value="40" style="flex:1;min-width:100px;height:44px"></div>
+    <div class="row" style="margin-bottom:10px"><button class="btn main" id="auto">Tự nhận khung</button><select id="rtl" aria-label="Chiều đọc"><option value="1">Đọc phải → trái (manga)</option><option value="0">Đọc trái → phải</option></select></div>
     <div id="box"><canvas id="cv" aria-label="Trang đang cắt, kéo để chọn khung"></canvas></div>
     <div id="st">Kéo trên trang để chọn khung.</div>
     <div class="row">
@@ -157,7 +160,7 @@ details.card{margin:10px 0}summary{cursor:pointer;font-weight:500;min-height:28p
     arr.forEach(function(f){
       var im=new Image();
       im.onload=function(){
-        pages.push({img:im,iw:im.naturalWidth,ih:im.naturalHeight,name:(f.name||'trang').replace(/\.[^.]+$/,'')});
+        pages.push({img:im,iw:im.naturalWidth,ih:im.naturalHeight,name:(f.name||'trang').replace(/\.[^.]+$/,''),file:f});
         if(--left===0){fillPages();setPage(first)}
       };
       im.onerror=function(){if(--left===0&&pages.length){fillPages();setPage(first)}};
@@ -167,7 +170,7 @@ details.card{margin:10px 0}summary{cursor:pointer;font-weight:500;min-height:28p
   function fillPages(){
     var sel=$('pages');sel.innerHTML='';
     pages.forEach(function(p,i){var o=document.createElement('option');o.value=i;o.textContent='Trang '+(i+1)+' · '+p.name;sel.appendChild(o)});
-    $('pagerow').style.display='flex';
+    $('pagerow').style.display='flex';persist();
   }
   function setPage(i){
     if(i<0||i>=pages.length)return;
@@ -293,9 +296,8 @@ details.card{margin:10px 0}summary{cursor:pointer;font-weight:500;min-height:28p
   $('pages').addEventListener('change',function(e){setPage(parseInt(e.target.value,10))});
   window.addEventListener('resize',function(){layout()});
 
-  $('add').addEventListener('click',function(){
-    if(!quad)return;
-    var pts=quad.map(function(q){return{x:q.x/s,y:q.y/s}});
+  $('add').addEventListener('click',function(){if(!quad)return;addPts(quad.map(function(q){return{x:q.x/s,y:q.y/s}}),true)});
+  function addPts(pts,single){
     var xs=pts.map(function(q){return q.x}),ys=pts.map(function(q){return q.y});
     var x0=Math.floor(Math.min.apply(0,xs)),y0=Math.floor(Math.min.apply(0,ys)),x1=Math.ceil(Math.max.apply(0,xs)),y1=Math.ceil(Math.max.apply(0,ys));
     var w=Math.max(1,x1-x0),h=Math.max(1,y1-y0);
@@ -303,16 +305,15 @@ details.card{margin:10px 0}summary{cursor:pointer;font-weight:500;min-height:28p
     if(f==='jpeg'){o.fillStyle='#fff';o.fillRect(0,0,w,h)}
     o.imageSmoothingQuality='high';
     o.save();o.translate(-x0,-y0);o.beginPath();poly(o,pts,1);o.clip();o.translate(x0,y0);o.drawImage(img,-x0,-y0);o.restore();if(bgOn)removeBg(oc);
-    var ext=f==='jpeg'?'jpg':f,pg=cur,nm=pages[cur].name;
-    oc.toBlob(function(bl){
-      if(!bl)return;
-      count++;
-      crops.push({page:pg,pts:pts,blob:bl,url:URL.createObjectURL(bl),w:w,h:h,ext:ext,name:nm+'-khung'+count,n:count});
-      quad=null;sync();renderList();say('Đã thêm khung '+count+'. Kéo trên trang để chọn khung tiếp theo.');
-    },'image/'+f,0.92);
-  });
+    var ext=f==='jpeg'?'jpg':f,pg=cur,nm=pages[cur].name,n=++count;
+    return new Promise(function(done){oc.toBlob(function(bl){
+      if(bl){crops.push({page:pg,pts:pts,blob:bl,url:URL.createObjectURL(bl),w:w,h:h,ext:ext,name:nm+'-khung'+n,n:n});crops.sort(function(a,b){return a.n-b.n})}
+      if(single){quad=null;sync();renderList();say('Đã thêm khung '+n+'. Kéo trên trang để chọn khung tiếp theo.')}
+      done();
+    },'image/'+f,0.92)});
+  }
 
-  function renderList(){
+  function renderList(){persist();
     var L=$('list');L.innerHTML='';if(window.JSZip&&crops.length>1){var za=document.createElement('button');za.className='btn main';za.textContent='Tải tất cả ('+crops.length+' khung, .zip)';za.addEventListener('click',zipAll);L.appendChild(za)}
     $('lh').style.display=crops.length?'block':'none';
     $('dlhint').style.display='none';
@@ -355,6 +356,136 @@ details.card{margin:10px 0}summary{cursor:pointer;font-weight:500;min-height:28p
       $('wp').style.backgroundImage='url("'+rd.result+'")';document.documentElement.setAttribute('data-theme',l>140?'light':'dark');$('wall').value='own';draw();
     };im.src=rd.result};rd.readAsDataURL(f);
   });
+  /* ---- lưu khi tải lại trang ---- */
+  var db=null,savedIds={};
+  function idb(){return new Promise(function(res){try{var r=indexedDB.open('manga-panel-tool',1);
+    r.onupgradeneeded=function(){var d=r.result;d.createObjectStore('pages',{keyPath:'idx'});d.createObjectStore('crops',{keyPath:'id'});d.createObjectStore('meta',{keyPath:'k'})};
+    r.onsuccess=function(){res(r.result)};r.onerror=function(){res(null)}}catch(e){res(null)}})}
+  function persist(){
+    if(!db)return;var t;try{t=db.transaction(['pages','crops','meta'],'readwrite')}catch(e){return}
+    t.onabort=function(){say('Không lưu được vào trình duyệt (có thể đầy bộ nhớ).')};
+    pages.forEach(function(p,i){if(!p.saved&&p.file){p.saved=true;t.objectStore('pages').put({idx:i,name:p.name,file:p.file})}});
+    var now={};
+    crops.forEach(function(c){
+      if(!c.id)c.id='c'+Date.now().toString(36)+Math.random().toString(36).slice(2,6);
+      now[c.id]=1;
+      if(!savedIds[c.id]){savedIds[c.id]=1;t.objectStore('crops').put({id:c.id,page:c.page,pts:c.pts,blob:c.blob,w:c.w,h:c.h,ext:c.ext,name:c.name,n:c.n})}
+    });
+    Object.keys(savedIds).forEach(function(k){if(!now[k]){delete savedIds[k];t.objectStore('crops').delete(k)}});
+    t.objectStore('meta').put({k:'count',v:count});
+  }
+  function restore(){
+    idb().then(function(d){
+      db=d;if(!d)return;
+      var P=[],C=[],M=0,t=d.transaction(['pages','crops','meta']);
+      t.objectStore('pages').getAll().onsuccess=function(e){P=e.target.result};
+      t.objectStore('crops').getAll().onsuccess=function(e){C=e.target.result};
+      t.objectStore('meta').get('count').onsuccess=function(e){M=e.target.result?e.target.result.v:0};
+      t.oncomplete=function(){
+        if(!P.length||pages.length)return;
+        P.sort(function(a,b){return a.idx-b.idx});
+        var arr=[],left=P.length;
+        function fin(){
+          if(--left)return;
+          arr=arr.filter(Boolean);if(!arr.length||pages.length)return;
+          pages=arr;
+          C=C.filter(function(c){return c.page<pages.length}).sort(function(a,b){return a.n-b.n});
+          C.forEach(function(c){c.url=URL.createObjectURL(c.blob);savedIds[c.id]=1;crops.push(c)});
+          count=Math.max(M,C.length?C[C.length-1].n:0);
+          fillPages();renderList();setPage(C.length?C[C.length-1].page:0);
+          say('Đã khôi phục '+pages.length+' trang và '+crops.length+' khung từ lần trước.');
+        }
+        P.forEach(function(r,i){
+          var im=new Image();
+          im.onload=function(){arr[i]={img:im,iw:im.naturalWidth,ih:im.naturalHeight,name:r.name,file:r.file,saved:true};fin()};
+          im.onerror=fin;im.src=URL.createObjectURL(r.file);
+        });
+      };
+    });
+  }
+  var wt=0;
+  $('wipe').addEventListener('click',function(){
+    var b=this;
+    if(!wt){b.textContent='Bấm lần nữa để xóa hết';wt=setTimeout(function(){wt=0;b.textContent='Xóa ảnh & khung đã lưu'},4000);return}
+    clearTimeout(wt);if(!db){location.reload();return}
+    var t=db.transaction(['pages','crops','meta'],'readwrite');
+    ['pages','crops','meta'].forEach(function(n){t.objectStore(n).clear()});
+    t.oncomplete=function(){location.reload()};
+  });
+
+  /* ---- tự nhận khung ---- */
+  function ar(a){return(a[2]-a[0])*(a[3]-a[1])}
+  function ov(a,b){var w=Math.min(a[2],b[2])-Math.max(a[0],b[0]),h=Math.min(a[3],b[3])-Math.max(a[1],b[1]);return w>0&&h>0?w*h:0}
+  function dil(m,W,H,r){
+    var a=new Uint8Array(W*H),b=new Uint8Array(W*H),x,y,n;
+    for(y=0;y<H;y++){n=0;for(x=0;x<W+r;x++){if(x<W)n+=m[y*W+x];if(x-2*r-1>=0)n-=m[y*W+x-2*r-1];if(x-r>=0)a[y*W+x-r]=n>0?1:0}}
+    for(x=0;x<W;x++){n=0;for(y=0;y<H+r;y++){if(y<H)n+=a[y*W+x];if(y-2*r-1>=0)n-=a[(y-2*r-1)*W+x];if(y-r>=0)b[(y-r)*W+x]=n>0?1:0}}
+    return b;
+  }
+  function order(L,rtl){
+    if(L.length<2)return L;
+    var q=L.slice().sort(function(a,b){return a[1]-b[1]}),mx=q[0][3],i;
+    for(i=1;i<q.length;i++){if(q[i][1]>=mx-2)return order(q.slice(0,i),rtl).concat(order(q.slice(i),rtl));mx=Math.max(mx,q[i][3])}
+    q=L.slice().sort(function(a,b){return a[0]-b[0]});mx=q[0][2];
+    for(i=1;i<q.length;i++){if(q[i][0]>=mx-2){var A=order(q.slice(0,i),rtl),Z=order(q.slice(i),rtl);return rtl?Z.concat(A):A.concat(Z)}mx=Math.max(mx,q[i][2])}
+    return q.sort(function(a,b){return a[1]-b[1]});
+  }
+  function detect(rtl){
+    var Wd=Math.min(900,iw),k=Wd/iw,Hd=Math.max(1,Math.round(ih*k)),N=Wd*Hd,i,x,y;
+    var t=document.createElement('canvas');t.width=Wd;t.height=Hd;
+    var c=t.getContext('2d',{willReadFrequently:true});c.fillStyle='#fff';c.fillRect(0,0,Wd,Hd);c.drawImage(img,0,0,Wd,Hd);
+    var d=c.getImageData(0,0,Wd,Hd).data,g=new Uint8Array(N);
+    for(i=0;i<N;i++)g[i]=(d[i*4]*77+d[i*4+1]*150+d[i*4+2]*29)>>8;
+    var e=[];for(x=0;x<Wd;x++)e.push(g[x],g[N-Wd+x]);for(y=0;y<Hd;y++)e.push(g[y*Wd],g[y*Wd+Wd-1]);
+    e.sort(function(a,b){return a-b});var bg=e[e.length>>1],m=new Uint8Array(N);
+    for(i=0;i<N;i++)m[i]=Math.abs(g[i]-bg)>45?1:0;
+    m=dil(m,Wd,Hd,Math.max(2,Math.round(Wd*.005)));
+    var lab=new Uint8Array(N),st=new Int32Array(N),B=[];
+    for(i=0;i<N;i++){
+      if(!m[i]||lab[i])continue;
+      var sp=0,x0=Wd,y0=Hd,x1=0,y1=0;st[sp++]=i;lab[i]=1;
+      while(sp){
+        var p=st[--sp],px=p%Wd,py=(p-px)/Wd;
+        if(px<x0)x0=px;if(px>x1)x1=px;if(py<y0)y0=py;if(py>y1)y1=py;
+        if(px>0&&m[p-1]&&!lab[p-1]){lab[p-1]=1;st[sp++]=p-1}
+        if(px<Wd-1&&m[p+1]&&!lab[p+1]){lab[p+1]=1;st[sp++]=p+1}
+        if(py>0&&m[p-Wd]&&!lab[p-Wd]){lab[p-Wd]=1;st[sp++]=p-Wd}
+        if(py<Hd-1&&m[p+Wd]&&!lab[p+Wd]){lab[p+Wd]=1;st[sp++]=p+Wd}
+      }
+      B.push([x0,y0,x1+1,y1+1]);
+    }
+    B=B.filter(function(b){var w=b[2]-b[0],h=b[3]-b[1];return w*h>=N*.02&&w>=Wd*.08&&h>=Hd*.05});
+    var ch=true;
+    while(ch){ch=false;
+      merge:for(i=0;i<B.length;i++)for(var j=i+1;j<B.length;j++){
+        if(ov(B[i],B[j])>.25*Math.min(ar(B[i]),ar(B[j]))){
+          B[i]=[Math.min(B[i][0],B[j][0]),Math.min(B[i][1],B[j][1]),Math.max(B[i][2],B[j][2]),Math.max(B[i][3],B[j][3])];
+          B.splice(j,1);ch=true;break merge;
+        }
+      }
+    }
+    var out=order(B,rtl);
+    return out.map(function(b){return[Math.max(0,b[0]/k),Math.max(0,b[1]/k),Math.min(iw,b[2]/k),Math.min(ih,b[3]/k)]});
+  }
+  $('auto').addEventListener('click',function(){
+    if(!img)return;var btn=this;btn.disabled=true;say('Đang tìm khung...');
+    setTimeout(function(){
+      var r=detect($('rtl').value==='1'),page=cur;
+      if(r.length===1&&ar(r[0])>.85*iw*ih){say('Không tách được: trang này không có khoảng trống rõ giữa các khung. Bạn tự kéo khung nhé.');btn.disabled=false;return}
+      var mine=crops.filter(function(c){return c.page===page}).map(function(c){
+        var xs=c.pts.map(function(q){return q.x}),ys=c.pts.map(function(q){return q.y});
+        return[Math.min.apply(0,xs),Math.min.apply(0,ys),Math.max.apply(0,xs),Math.max.apply(0,ys)];
+      });
+      r=r.filter(function(b){return!mine.some(function(o){return ov(b,o)>.6*Math.min(ar(b),ar(o))})});
+      if(!r.length){say('Không có khung mới nào để thêm (có thể trang này đã được cắt rồi).');btn.disabled=false;return}
+      Promise.all(r.map(function(b){return addPts([{x:b[0],y:b[1]},{x:b[2],y:b[1]},{x:b[2],y:b[3]},{x:b[0],y:b[3]}],false)})).then(function(){
+        renderList();draw();btn.disabled=false;
+        say('Đã tự nhận '+r.length+' khung. Khung nào sai thì bấm Sửa hoặc Xóa ở mục bên dưới.');
+      });
+    },30);
+  });
+  restore();
+
   wall('mist');
   $('file').addEventListener('change',function(e){loadFiles(e.target.files)});
   document.addEventListener('paste',function(e){var fl=e.clipboardData&&e.clipboardData.files;if(fl&&fl.length)loadFiles(fl)});
