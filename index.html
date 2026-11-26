@@ -68,7 +68,15 @@ details.card{margin:10px 0}summary{cursor:pointer;font-weight:500;min-height:28p
 .app .open{min-height:44px;padding:0 20px;border-radius:12px;display:flex;align-items:center;gap:8px;font:700 14px Roboto,system-ui,sans-serif;color:#fff;cursor:pointer;border:1px solid color-mix(in srgb,var(--a) 60%,transparent);background:color-mix(in srgb,var(--a) 16%,transparent)}
 .app .open:disabled{opacity:.35;cursor:default;border-color:rgba(255,255,255,.15);background:rgba(255,255,255,.04)}
 .app .open:focus-visible{outline:3px solid #fff;outline-offset:2px}
-#tool .back{margin-bottom:10px}
+.back{margin-bottom:10px}
+#split textarea{width:100%;min-height:200px;resize:vertical;padding:10px;border:1px solid var(--line);border-radius:6px;background:var(--card);color:var(--ink);font:400 15px/1.5 Roboto,system-ui,sans-serif}
+#split input[type=number]{width:110px;min-height:44px;padding:0 10px;border:1px solid var(--line);border-radius:6px;background:var(--card);color:var(--ink);font:500 14px Roboto,system-ui,sans-serif}
+#split textarea:focus-visible,#split input:focus-visible{outline:3px solid var(--blue);outline-offset:2px}
+.ck{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:10px;backdrop-filter:blur(16px) saturate(1.2);-webkit-backdrop-filter:blur(16px) saturate(1.2)}
+.ck .hd{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:8px}
+.ck .hd b{font-weight:500;font-size:15px}
+.ck .tx{white-space:pre-wrap;font-size:14px;max-height:130px;overflow:auto;color:var(--mute)}
+.ck.done{opacity:.55}
 </style>
 </head>
 <body>
@@ -79,6 +87,22 @@ details.card{margin:10px 0}summary{cursor:pointer;font-weight:500;min-height:28p
     <div class="apps" id="apps"></div>
   </div>
 </div>
+<main id="split" hidden>
+  <button class="btn back" id="back2">← Trang chủ</button>
+  <h1>Chia kịch bản</h1>
+  <p class="hint">Dán toàn bộ lời thoại vào ô dưới. Tool tự chia thành các đoạn không vượt giới hạn chữ, ngắt ở cuối dòng hoặc cuối câu.</p>
+  <div class="card">
+    <textarea id="sp-src" placeholder="Dán lời thoại vào đây..." aria-label="Lời thoại"></textarea>
+    <div class="row">
+      <label for="sp-lim" class="hint" style="margin:0">Tối đa mỗi đoạn</label>
+      <input type="number" id="sp-lim" value="2500" min="100" max="100000" step="100">
+      <select id="sp-mode" aria-label="Cách ngắt đoạn"><option value="auto">Tự chọn cách ngắt</option><option value="line">Ngắt theo dòng</option><option value="sent">Ngắt theo câu</option></select>
+      <button class="btn" id="sp-clear">Xóa hết</button>
+    </div>
+  </div>
+  <div id="sp-info" class="hint" style="margin-top:10px">Dán lời thoại vào ô trên.</div>
+  <div id="sp-list" style="display:grid;gap:10px"></div>
+</main>
 <main id="tool" hidden>
   <button class="btn back" id="back">← Trang chủ</button>
   <h1>Cắt khung từ trang</h1>
@@ -493,11 +517,87 @@ details.card{margin:10px 0}summary{cursor:pointer;font-weight:500;min-height:28p
 </script>
 <script>
 (function(){
+  /*PURE*/
+  var MK='\u0001';
+  function sentences(t){return t.replace(/([。！？]+[」』”’)]*|[.!?…]+["”’)」』]*(?=\s|$))\s*/g,'$1'+MK).split(MK).map(function(s){return s.trim()}).filter(Boolean)}
+  function pack(a,sep,lim){
+    var out=[],cur='';
+    a.forEach(function(p){
+      if(!cur)cur=p;
+      else if(cur.length+sep.length+p.length<=lim)cur+=sep+p;
+      else{out.push(cur);cur=p}
+    });
+    if(cur)out.push(cur);return out;
+  }
+  function subs(s,lim){
+    var parts=s.replace(/([,;:，；：、]+)\s*/g,'$1'+MK).split(MK).filter(Boolean),out=[];
+    parts.forEach(function(p){
+      while(p.length>lim){var k=p.lastIndexOf(' ',lim),cut=k>lim*.5?k:lim;out.push(p.slice(0,cut).trim());p=p.slice(cut).trim()}
+      if(p)out.push(p);
+    });
+    return pack(out,' ',lim);
+  }
+  function build(t,lim,mode){
+    t=t.normalize('NFC').replace(/\r/g,'');
+    var lines=t.split('\n').map(function(l){return l.trim()}).filter(Boolean);
+    if(mode==='auto')mode=lines.length>1?'line':'sent';
+    var u=mode==='line'?lines:sentences(lines.join(' ')),sep=mode==='line'?'\n':' ',pc=[];
+    u.forEach(function(x){
+      if(x.length<=lim)pc.push(x);
+      else sentences(x).forEach(function(y){if(y.length<=lim)pc.push(y);else subs(y,lim).forEach(function(z){pc.push(z)})});
+    });
+    return pack(pc,sep,lim);
+  }
+  /*ENDPURE*/
+  var $=function(i){return document.getElementById(i)},src=$('sp-src'),limEl=$('sp-lim'),modeEl=$('sp-mode'),info=$('sp-info'),list=$('sp-list'),dl=null;
+  function fmt(n){return n.toLocaleString('vi-VN')}
+  function store(k,v){try{if(v===undefined)return localStorage.getItem(k);localStorage.setItem(k,v)}catch(e){return null}}
+  try{if(window.claude&&claude.use)claude.use('downloads').then(function(d){dl=d}).catch(function(){})}catch(e){}
+  function oldCopy(s){return new Promise(function(res,rej){var a=document.createElement('textarea');a.value=s;a.style.cssText='position:fixed;opacity:0';document.body.appendChild(a);a.select();var ok=false;try{ok=document.execCommand('copy')}catch(e){}a.remove();ok?res():rej()})}
+  function copy(s){return navigator.clipboard&&navigator.clipboard.writeText?navigator.clipboard.writeText(s).catch(function(){return oldCopy(s)}):oldCopy(s)}
+  function save(name,blob){
+    if(dl)return dl.save({filename:name,data:blob});
+    var u=URL.createObjectURL(blob),a=document.createElement('a');a.href=u;a.download=name;document.body.appendChild(a);a.click();a.remove();
+    setTimeout(function(){URL.revokeObjectURL(u)},4000);
+  }
+  function render(){
+    var t=src.value,lim=Math.max(100,parseInt(limEl.value,10)||2500);
+    store('sp-src',t);store('sp-lim',String(lim));store('sp-mode',modeEl.value);
+    list.innerHTML='';
+    if(!t.trim()){info.textContent='Dán lời thoại vào ô trên.';return}
+    var ch=build(t,lim,modeEl.value);
+    info.textContent='Tổng '+fmt(t.normalize('NFC').replace(/\r/g,'').length)+' chữ, chia thành '+ch.length+' đoạn (tối đa '+fmt(lim)+' chữ mỗi đoạn).';
+    if(ch.length>1){
+      var all=document.createElement('button');all.className='btn';all.style.justifySelf='start';all.textContent='Tải tất cả (.txt)';
+      all.addEventListener('click',function(){save('chia-kich-ban.txt',new Blob([ch.map(function(c,i){return '----- Đoạn '+(i+1)+' -----\n'+c}).join('\n\n')],{type:'text/plain'}))});
+      list.appendChild(all);
+    }
+    ch.forEach(function(c,i){
+      var d=document.createElement('div');d.className='ck';
+      var hd=document.createElement('div');hd.className='hd';
+      var b=document.createElement('b');b.textContent='Đoạn '+(i+1)+' · '+fmt(c.length)+' chữ';
+      var bt=document.createElement('button');bt.className='btn main';bt.textContent='Sao chép';
+      bt.addEventListener('click',function(){copy(c).then(function(){bt.textContent='Đã sao chép ✓';d.classList.add('done')}).catch(function(){bt.textContent='Không sao chép được'})});
+      var tx=document.createElement('div');tx.className='tx';tx.textContent=c;
+      hd.appendChild(b);hd.appendChild(bt);d.appendChild(hd);d.appendChild(tx);list.appendChild(d);
+    });
+  }
+  var s0=store('sp-src'),l0=store('sp-lim'),m0=store('sp-mode');
+  if(s0)src.value=s0;if(l0)limEl.value=l0;if(m0)modeEl.value=m0;
+  src.addEventListener('input',render);limEl.addEventListener('input',render);modeEl.addEventListener('change',render);
+  $('sp-clear').addEventListener('click',function(){src.value='';render();src.focus()});
+  render();
+})();
+</script>
+<script>
+(function(){
   var APPS=[
-    {name:'Manga Panel Tool',cat:'IMAGE',desc:'Tách khung, cắt xéo và xóa nền hình ảnh ngay trên máy.',ver:'v0.2.3',a:'#ff4fa0',ico:'crop',route:'cat-anh'}
+    {name:'Manga Panel Tool',cat:'IMAGE',desc:'Tách khung, cắt xéo và xóa nền hình ảnh ngay trên máy.',ver:'v0.2.3',a:'#ff4fa0',ico:'crop',route:'cat-anh'},
+    {name:'Chia Kịch Bản',cat:'VOICE & SCRIPT',desc:'Chia lời thoại dài thành các đoạn dưới giới hạn chữ để tạo giọng đọc trong CapCut.',ver:'v0.1.0',a:'#3dd6c3',ico:'text',route:'chia-kich-ban'}
   ];
   var ICO={
     crop:'<path d="M6 2v14a2 2 0 0 0 2 2h14M2 6h14a2 2 0 0 1 2 2v14"/>',
+    text:'<path d="M4 6h16M4 12h10M4 18h16"/>',
     play:'<path d="M8 5v14l11-7z"/>',
     music:'<path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/>',
     mic:'<rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v4"/>'
@@ -512,11 +612,13 @@ details.card{margin:10px 0}summary{cursor:pointer;font-weight:500;min-height:28p
     box.appendChild(c);
   });
   
-  document.getElementById('back').addEventListener('click',function(){location.hash='trang-chu'});
+  ['back','back2'].forEach(function(i){document.getElementById(i).addEventListener('click',function(){location.hash='trang-chu'})});
+  var VIEWS={'cat-anh':'tool','chia-kich-ban':'split'};
   function route(){
-    var t=location.hash==='#cat-anh';
-    document.getElementById('home').hidden=t;document.getElementById('tool').hidden=!t;
-    window.scrollTo(0,0);if(t)setTimeout(function(){window.dispatchEvent(new Event('resize'))},0);
+    var v=VIEWS[location.hash.slice(1)];
+    document.getElementById('home').hidden=!!v;
+    document.getElementById('tool').hidden=v!=='tool';document.getElementById('split').hidden=v!=='split';
+    window.scrollTo(0,0);if(v==='tool')setTimeout(function(){window.dispatchEvent(new Event('resize'))},0);
   }
   window.addEventListener('hashchange',route);route();
 })();
